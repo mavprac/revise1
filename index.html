@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1F3D36">
+<title>Recall – Study Tracker</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-192.png">
+<script src="dexie.min.js"></script>
+<style>
+:root{--bg:#EEF2EA;--sf:#fff;--sf2:#E2E9DC;--ink:#17261F;--mut:#5A6B61;--pri:#1F3D36;--onp:#fff;--acc:#E8A317;--bad:#B93A26;--ok:#2E7D4F;--ln:#CBD6C4;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);color-scheme:light}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#101A16;--sf:#18251F;--sf2:#22332B;--ink:#E7EFE8;--mut:#9DB0A4;--pri:#8FD0B0;--onp:#0B1712;--acc:#F0B63A;--bad:#F08A76;--ok:#7BCB9A;--ln:#2E4238;color-scheme:dark}}
+:root[data-theme=dark]{--bg:#101A16;--sf:#18251F;--sf2:#22332B;--ink:#E7EFE8;--mut:#9DB0A4;--pri:#8FD0B0;--onp:#0B1712;--acc:#F0B63A;--bad:#F08A76;--ok:#7BCB9A;--ln:#2E4238;color-scheme:dark}
+*{box-sizing:border-box}html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow-x:hidden}
+h1,h2,h3{font-family:Georgia,"Times New Roman",serif;margin:0;font-weight:700}
+main{max-width:640px;margin:0 auto;padding:16px 16px calc(148px + env(safe-area-inset-bottom,0px))}
+.top{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;margin-bottom:14px}
+.top h1{font-size:28px;line-height:1.1}.mut{color:var(--mut);font-size:14px}
+.streak{background:var(--acc);color:#2a1d00;border-radius:16px;padding:8px 12px;font-weight:700;text-align:center;min-width:64px}
+.streak b{display:block;font-size:22px;font-family:Georgia,serif}
+.sum{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+.sum div{background:var(--sf);border:1px solid var(--ln);border-radius:16px;padding:10px;text-align:center}
+.sum b{display:block;font:700 26px Georgia,serif}.sum .od b{color:var(--bad)}
+.chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:8px;margin-bottom:8px;scrollbar-width:none}
+.chip{flex:none;min-height:40px;padding:0 14px;border-radius:20px;border:1px solid var(--ln);background:var(--sf);color:var(--ink);font:inherit;font-size:14px}
+.chip.on{background:var(--pri);color:var(--onp);border-color:var(--pri)}
+.card{background:var(--sf);border:1px solid var(--ln);border-left:6px solid var(--c,var(--pri));border-radius:16px;padding:12px 14px;margin-bottom:10px;display:flex;gap:10px;align-items:center}
+.card .b{flex:1;min-width:0}.card h3{font-size:17px}.card p{margin:2px 0;font-size:13px;color:var(--mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tag{display:inline-block;font-size:12px;border-radius:8px;padding:1px 8px;background:var(--sf2);margin-right:4px}.tag.bad{background:var(--bad);color:#fff}
+button{font:inherit;color:inherit;cursor:pointer}
+.btn{min-height:48px;min-width:48px;padding:0 18px;border-radius:24px;border:0;background:var(--pri);color:var(--onp);font-weight:600}
+.btn.sec{background:var(--sf2);color:var(--ink)}.btn.dng{background:var(--bad);color:#fff}.btn.sm{min-height:48px;padding:0 14px}
+.btn:disabled{opacity:.5}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+nav{position:fixed;left:0;right:0;bottom:0;background:var(--sf);border-top:1px solid var(--ln);display:flex;padding-bottom:env(safe-area-inset-bottom,0px);z-index:5}
+nav button{flex:1;min-height:64px;border:0;background:none;font-size:12px;color:var(--mut);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+nav button.on{color:var(--pri);font-weight:700}nav svg{width:24px;height:24px}
+.fab{position:fixed;right:18px;bottom:calc(80px + env(safe-area-inset-bottom,0px));width:60px;height:60px;border-radius:20px;border:0;background:var(--acc);color:#2a1d00;font-size:32px;box-shadow:0 4px 14px rgba(0,0,0,.28);z-index:6}
+#sh{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-end;z-index:20}
+#sh.on{display:flex}
+#sh>div{background:var(--bg);width:100%;max-width:640px;margin:0 auto;max-height:92%;overflow-y:auto;border-radius:24px 24px 0 0;padding:18px 16px calc(20px + env(safe-area-inset-bottom,0px));animation:up .18s ease-out}
+@keyframes up{from{transform:translateY(30px);opacity:.4}}@media(prefers-reduced-motion:reduce){#sh>div{animation:none}}
+label{display:block;font-size:14px;font-weight:600;margin:12px 0 4px}
+input,select,textarea{width:100%;min-height:48px;padding:10px 12px;border-radius:12px;border:1px solid var(--ln);background:var(--sf);color:var(--ink);font:inherit}
+textarea{min-height:84px}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.row>*{flex:1}
+.rate{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
+.rate button{min-height:56px;border-radius:16px;border:1px solid var(--ln);background:var(--sf);font-weight:700}
+.r0{color:var(--bad)}.r1{color:#B7791F}.r2{color:var(--ok)}.r3{color:var(--pri)}
+.prev{font-size:14px;background:var(--sf);border-radius:12px;padding:8px 12px;margin-top:6px}
+.prev div{display:flex;justify-content:space-between;padding:2px 0}
+.hist{font-size:13px;color:var(--mut);margin:6px 0 0;padding:0;list-style:none}
+.bars{display:flex;align-items:flex-end;gap:6px;height:140px;background:var(--sf);border:1px solid var(--ln);border-radius:16px;padding:10px 8px 6px}
+.bars div{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;font-size:11px;color:var(--mut)}
+.bars i{display:block;width:100%;background:var(--pri);border-radius:6px 6px 0 0;min-height:2px}
+.bars .o i{background:var(--bad)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}
+.grid2 div{background:var(--sf);border:1px solid var(--ln);border-radius:14px;padding:10px}.grid2 b{display:block;font:700 22px Georgia,serif}
+.meter{height:8px;background:var(--sf2);border-radius:4px;overflow:hidden}.meter i{display:block;height:100%;background:var(--ok)}
+.empty{text-align:center;color:var(--mut);padding:36px 12px}
+.sec h2{font-size:20px;margin:20px 0 8px}
+#toast{position:fixed;left:50%;bottom:calc(150px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;z-index:30;display:none;max-width:90%}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--c);margin-right:6px}
+</style></head>
+<body>
+<main id="v"></main>
+<button class="fab" id="fab" aria-label="Add studied topic">+</button>
+<nav aria-label="Main">
+<button data-tab="today"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 11h18"/></svg>Today</button>
+<button data-tab="syl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 21V5"/></svg>Syllabus</button>
+<button data-tab="ana"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 20V10M12 20V4M19 20v-7"/></svg>Analytics</button>
+<button data-tab="set"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2"/></svg>Settings</button>
+</nav>
+<div id="sh" role="dialog" aria-modal="true"><div id="shc"></div></div>
+<div id="toast" role="status"></div>
+<script>
+/* ===== Date utilities (local calendar dates as YYYY-MM-DD; DST-safe) ===== */
+const pad=n=>String(n).padStart(2,'0');
+const iso=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const parse=s=>{const[a,b,c]=s.split('-').map(Number);return new Date(a,b-1,c)};
+const today=()=>iso(new Date());
+const addDays=(s,n)=>{const d=parse(s);d.setDate(d.getDate()+n);return iso(d)};
+const diffDays=(a,b)=>Math.round((Date.UTC(...b.split('-').map((x,i)=>i==1?x-1:+x))-Date.UTC(...a.split('-').map((x,i)=>i==1?x-1:+x)))/864e5);
+const fmt=s=>parse(s).toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'});
+
+/* ===== SRS engine (pure, deterministic) =====
+ STD=[1,3,7,14,30]. State: repetitionCount r (completed successful revisions), currentInterval, easeFactor.
+ Initial: r=0, interval=0, ease=2.5, next=study+1 (Revision 1).
+ Forgot: r=0, interval=1, ease-0.20 (min 1.3).
+ Hard:   interval=max(1,round(cur*1.2)), r unchanged, ease-0.15 (min 1.3).
+ Good:   r+1; interval=STD[r+1] if r+1<5 else round(cur*ease); ease unchanged.
+ Easy:   as Good, then round(interval*1.3); ease+0.15; r+1.
+ Next review = ACTUAL review date + interval (overdue never resets progress). */
+const STD=[1,3,7,14,30],RATINGS=['Forgot','Hard','Good','Easy'];
+const clampE=e=>Math.max(1.3,Math.round(e*100)/100);
+function initSRS(study){return{repetitionCount:0,easeFactor:2.5,currentInterval:0,status:'learning',lastReviewedAt:study,nextReviewDate:addDays(study,1)}}
+function applyRating(t,rating,actual){
+ let r=t.repetitionCount,cur=t.currentInterval,e=t.easeFactor,iv;
+ const adv=()=>r+1<STD.length?STD[r+1]:Math.max(1,Math.round(cur*(e)));
+ if(rating==='Forgot'){r=0;iv=1;e=clampE(e-.2)}
+ else if(rating==='Hard'){iv=Math.max(1,Math.round(Math.max(cur,1)*1.2));e=clampE(e-.15)}
+ else if(rating==='Good'){iv=adv();r++}
+ else{iv=Math.max(1,Math.round(adv()*1.3));e=clampE(e+.15);r++}
+ const status=rating==='Forgot'?'learning':(r>=5?'mastered':'reviewing');
+ return{repetitionCount:r,easeFactor:e,currentInterval:iv,status,lastReviewedAt:actual,nextReviewDate:addDays(actual,iv)};
+}
+/* Mastery (not the ease factor): successful-stage progress min(r,5)/5; mastered when r>=5 and last rating wasn't Forgot. */
+const mastery=t=>Math.round(Math.min(t.repetitionCount,5)/5*100);
+
+/* ===== Database ===== */
+const db=new Dexie('recall-srs');
+db.version(1).stores({subjects:'id',topics:'id,subjectId,nextReviewDate',logs:'id,topicId,actualDate',settings:'key'});
+const uid=()=>crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2);
+const getSet=async(k,d)=>{const r=await db.settings.get(k);return r?r.value:d};
+const setSet=(k,v)=>db.settings.put({key:k,value:v});
+const COLORS=['#2E7D4F','#B93A26','#2F6DB5','#9A5BB5','#C7861A','#1B8A8F','#7A5C3E','#D14D8A'];
+
+/* ===== UI helpers ===== */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let tab='today',filter='all',busy=false,D={};
+function toast(m){const t=$('#toast');t.textContent=m;t.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>t.style.display='none',2400)}
+function sheet(h){$('#shc').innerHTML=h;$('#sh').classList.add('on')}
+function closeSheet(){$('#sh').classList.remove('on')}
+$('#sh').addEventListener('click',e=>{if(e.target.id==='sh')closeSheet()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSheet()});
+async function load(){const[s,t,l]=await Promise.all([db.subjects.toArray(),db.topics.toArray(),db.logs.toArray()]);D={subs:s,tops:t.filter(x=>x&&x.id&&x.title),logs:l,sub:Object.fromEntries(s.map(x=>[x.id,x])),theme:await getSet('theme','system')};
+ document.documentElement.dataset.theme=D.theme==='system'?'':D.theme}
+const subOf=t=>D.sub[t.subjectId]||{name:'Unknown',color:'#888'};
+const studyDays=()=>new Set(D.logs.map(l=>l.actualDate));
+function streaks(){const days=[...studyDays()].sort();let best=0,run=0,prev=null;
+ for(const d of days){run=prev&&diffDays(prev,d)===1?run+1:1;best=Math.max(best,run);prev=d}
+ let cur=0,c=studyDays().has(today())?today():addDays(today(),-1);while(studyDays().has(c)){cur++;c=addDays(c,-1)}
+ return{cur,best}}
+
+/* ===== Views ===== */
+function viewToday(){
+ const td=today(),act=D.tops.filter(t=>!t.archived);
+ let due=act.filter(t=>t.nextReviewDate<=td).sort((a,b)=>(a.nextReviewDate>td?1:0)-(b.nextReviewDate>td?1:0)||a.nextReviewDate.localeCompare(b.nextReviewDate));
+ const od=due.filter(t=>t.nextReviewDate<td).length,done=D.logs.filter(l=>l.actualDate===td).length;
+ const shown=filter==='all'?due:due.filter(t=>t.subjectId===filter);
+ const h=new Date().getHours(),g=h<12?'Good morning':h<18?'Good afternoon':'Good evening';
+ const chips=`<button class="chip ${filter==='all'?'on':''}" data-f="all">All (${due.length})</button>`+D.subs.map(s=>`<button class="chip ${filter===s.id?'on':''}" data-f="${s.id}"><span class="dot" style="--c:${s.color}"></span>${esc(s.name)} (${due.filter(t=>t.subjectId===s.id).length})</button>`).join('');
+ return`<div class="top"><div><div class="mut">${new Date().toLocaleDateString(undefined,{weekday:'long',day:'numeric',month:'long'})}</div><h1>${g}</h1><div class="mut">${due.length} to revise today</div></div><div class="streak"><b>${streaks().cur}</b>day streak</div></div>
+ <div class="sum"><div><b>${due.length-od}</b><span class="mut">Due today</span></div><div class="od"><b>${od}</b><span class="mut">Overdue</span></div><div><b>${done}</b><span class="mut">Done today</span></div></div>
+ <div class="chips">${chips}</div>`+
+ (shown.length?shown.map(t=>{const s=subOf(t),o=diffDays(t.nextReviewDate,td);return`<div class="card" style="--c:${s.color}"><div class="b"><h3>${esc(t.title)}</h3><p>${esc(s.name)}${t.notes?' – '+esc(t.notes):''}</p><div><span class="tag">Revision ${t.repetitionCount+1}</span><span class="tag">${t.currentInterval}d interval</span>${o>0?`<span class="tag bad">${o}d overdue</span>`:''}</div><p>Scheduled ${fmt(t.nextReviewDate)}</p></div><button class="btn sm" data-review="${t.id}">Review</button></div>`}).join(''):
+ `<div class="empty">${D.tops.length?'Nothing due. Enjoy the free time or add what you studied.':'No topics yet. Tap + to log what you studied today.'}</div>`)}
+
+function viewSyl(){
+ const q=(D.q||'').toLowerCase(),td=today();
+ let list=D.tops.filter(t=>(!q||(t.title+' '+(t.tags||[]).join(' ')).toLowerCase().includes(q))&&(!D.sf||D.sf==='all'||t.subjectId===D.sf));
+ if(D.st==='archived')list=list.filter(t=>t.archived);else{list=list.filter(t=>!t.archived);if(D.st==='overdue')list=list.filter(t=>t.nextReviewDate<td);if(D.st==='mastered')list=list.filter(t=>t.status==='mastered');if(D.st==='learning')list=list.filter(t=>t.status!=='mastered')}
+ const so=D.so||'next';list.sort((a,b)=>so==='study'?b.studyDate.localeCompare(a.studyDate):so==='mastery'?mastery(b)-mastery(a):a.nextReviewDate.localeCompare(b.nextReviewDate));
+ return`<div class="top"><h1>Syllabus</h1><button class="btn sm" data-act="newsub">+ Subject</button></div>
+ <input id="q" type="search" placeholder="Search topics or tags" value="${esc(D.q||'')}" aria-label="Search topics">
+ <div class="row"><select id="sf" aria-label="Subject"><option value="all">All subjects</option>${D.subs.map(s=>`<option value="${s.id}" ${D.sf===s.id?'selected':''}>${esc(s.name)}</option>`).join('')}</select>
+ <select id="st" aria-label="Status">${['all','learning','mastered','overdue','archived'].map(x=>`<option ${D.st===x?'selected':''}>${x}</option>`).join('')}</select>
+ <select id="so" aria-label="Sort"><option value="next" ${so==='next'?'selected':''}>Next review</option><option value="study" ${so==='study'?'selected':''}>Study date</option><option value="mastery" ${so==='mastery'?'selected':''}>Mastery</option></select></div>
+ <div id="sl">${sylList(list)}</div>`}
+function sylList(list){
+ if(!D.subs.length)return'<div class="empty">Create a subject first, then add topics.</div>';
+ const out=D.subs.map(s=>{const ts=list.filter(t=>t.subjectId===s.id);const all=D.tops.filter(t=>t.subjectId===s.id&&!t.archived);const m=all.length?Math.round(all.reduce((a,t)=>a+mastery(t),0)/all.length):0;
+  if(!ts.length&&(D.q||D.st&&D.st!=='all'))return'';
+  return`<div class="sec"><h2><span class="dot" style="--c:${s.color}"></span>${esc(s.name)} <button class="chip" data-act="editsub" data-id="${s.id}" aria-label="Edit subject">Edit</button></h2><div class="meter" title="Average mastery"><i style="width:${m}%"></i></div><div class="mut">${all.length} topics, ${m}% average mastery</div>`+
+  ts.map(t=>`<button class="card" style="--c:${s.color};width:100%;text-align:left;margin-top:8px" data-topic="${t.id}"><div class="b"><h3>${esc(t.title)}</h3><p>Next ${fmt(t.nextReviewDate)} · ${t.status}${t.archived?' · archived':''}</p></div><b>${mastery(t)}%</b></button>`).join('')+`</div>`}).join('');
+ return out||'<div class="empty">No topics match.</div>'}
+
+function viewAna(){
+ const td=today(),act=D.tops.filter(t=>!t.archived),st=streaks();
+ const days=[...Array(7)].map((_,i)=>addDays(td,i));
+ const cnt=days.map((d,i)=>act.filter(t=>i===0?t.nextReviewDate<=td&&t.nextReviewDate>=td:t.nextReviewDate===d).length),od=act.filter(t=>t.nextReviewDate<td).length;
+ const mx=Math.max(1,od,...cnt);
+ const bar=(n,l,o)=>`<div class="${o?'o':''}"><span>${n}</span><i style="height:${n/mx*100}px"></i><span>${l}</span></div>`;
+ const rd=RATINGS.map(r=>D.logs.filter(l=>l.rating===r).length),tot=rd.reduce((a,b)=>a+b,0);
+ const wk=[...Array(7)].map((_,i)=>addDays(td,-6+i));
+ const forg=D.tops.filter(t=>D.logs.filter(l=>l.topicId===t.id&&l.rating==='Forgot').length>=2);
+ const succ=tot?Math.round((rd[1]+rd[2]+rd[3])/tot*100):0;
+ return`<div class="top"><h1>Analytics</h1></div>
+ <div class="grid2"><div><b>${D.subs.length}</b>Subjects</div><div><b>${D.tops.length}</b>Topics</div><div><b>${D.tops.filter(t=>t.status==='mastered').length}</b>Mastered</div><div><b>${D.tops.filter(t=>t.status!=='mastered').length}</b>Learning</div><div><b>${tot}</b>Revisions done</div><div><b>${succ}%</b>Recall success</div><div><b>${st.cur}</b>Current streak</div><div><b>${st.best}</b>Longest streak</div></div>
+ <h2>Next 7 days</h2><div class="bars">${bar(od,'Late',1)}${cnt.map((n,i)=>bar(n,i===0?'Today':parse(days[i]).toLocaleDateString(undefined,{weekday:'short'}))).join('')}</div>
+ <h2>Revisions per day (last 7)</h2><div class="bars">${wk.map(d=>bar(D.logs.filter(l=>l.actualDate===d).length,parse(d).toLocaleDateString(undefined,{weekday:'short'}))).join('')}</div>
+ <h2>Recall ratings</h2>${RATINGS.map((r,i)=>`<div class="mut">${r}: ${rd[i]}${tot?' ('+Math.round(rd[i]/tot*100)+'%)':''}</div><div class="meter"><i style="width:${tot?rd[i]/tot*100:0}%"></i></div>`).join('')}
+ <h2>Subject mastery</h2>${D.subs.map(s=>{const a=act.filter(t=>t.subjectId===s.id),m=a.length?Math.round(a.reduce((x,t)=>x+mastery(t),0)/a.length):0;return`<div class="mut">${esc(s.name)}: ${m}%</div><div class="meter"><i style="width:${m}%"></i></div>`}).join('')||'<div class="mut">No subjects yet.</div>'}
+ <h2>Repeatedly forgotten</h2>${forg.length?forg.map(t=>`<div class="prev">${esc(t.title)}</div>`).join(''):'<div class="mut">None. Topics forgotten twice or more appear here.</div>'}
+ <p class="mut" style="margin-top:18px">Mastery = completed successful revisions (max 5) ÷ 5. A Forgot resets it. Ease factor only controls spacing after revision 5.</p>`}
+
+function viewSet(){
+ return`<div class="top"><h1>Settings</h1></div>
+ <label for="th">Theme</label><select id="th">${['system','light','dark'].map(x=>`<option ${D.theme===x?'selected':''}>${x}</option>`).join('')}</select>
+ <h2 style="margin-top:22px">Reminders</h2>
+ <p class="mut">Browsers can’t guarantee scheduled notifications without a server. Recall checks for due topics when you open the app or return to it. If notifications are blocked, export reminders to your calendar from any topic.</p>
+ <div class="row"><button class="btn sec" data-act="notif">Enable notifications</button></div>
+ <label for="nt">Preferred reminder time (earliest check)</label><input id="nt" type="time" value="${esc(D.nt||'08:00')}">
+ <h2 style="margin-top:22px">Backup</h2>
+ <div class="row"><button class="btn" data-act="export">Export JSON</button><button class="btn sec" data-act="import">Import JSON</button></div><input id="imp" type="file" accept="application/json" hidden>
+ <p class="mut" style="margin-top:20px">Data lives only in this browser (IndexedDB). Export regularly. To use on Android, open this page in Chrome, then menu → Add to Home screen.</p>`}
+
+async function render(){await load();D.nt=await getSet('notifyTime','08:00');
+ const v=$('#v');v.innerHTML={today:viewToday,syl:viewSyl,ana:viewAna,set:viewSet}[tab]();
+ document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.tab===tab));$('#fab').style.display=tab==='set'?'none':'';
+ }
+
+/* ===== Review ===== */
+function openReview(id){const t=D.tops.find(x=>x.id===id);if(!t)return;const s=subOf(t),h=D.logs.filter(l=>l.topicId===id).sort((a,b)=>b.ts-a.ts).slice(0,5);
+ sheet(`<h2>${esc(t.title)}</h2><div class="mut"><span class="dot" style="--c:${s.color}"></span>${esc(s.name)} · Revision ${t.repetitionCount+1} · scheduled ${fmt(t.nextReviewDate)}</div>
+ ${t.notes?`<div class="prev" style="white-space:pre-wrap">${esc(t.notes)}</div>`:''}
+ <ul class="hist">${h.map(l=>`<li>${fmt(l.actualDate)}: ${l.rating} (${l.previousInterval}d → ${l.newInterval}d)</li>`).join('')||'<li>No revisions yet.</li>'}</ul>
+ <p style="margin:14px 0 0;font-weight:600">How well did you recall it?</p>
+ <div class="rate">${RATINGS.map((r,i)=>`<button class="r${i}" data-rate="${r}" data-id="${id}">${r}</button>`).join('')}</div>
+ <div class="row"><button class="btn sec" data-close>Cancel</button></div>`)}
+async function rate(id,rating){if(busy)return;busy=true;
+ try{const td=today();let res;
+  await db.transaction('rw',db.topics,db.logs,async()=>{const t=await db.topics.get(id);if(!t)throw Error('Topic no longer exists');
+   if(t.nextReviewDate>td)throw Error('Not due yet');
+   if(t.lastReviewedAt===td&&(await db.logs.where('topicId').equals(id).filter(l=>l.actualDate===td).count())>0)throw Error('Already reviewed today');
+   const n=applyRating(t,rating,td);
+   await db.logs.add({id:uid(),topicId:id,ts:Date.now(),scheduledDate:t.nextReviewDate,actualDate:td,rating,previousInterval:t.currentInterval,newInterval:n.currentInterval,previousEase:t.easeFactor,newEase:n.easeFactor,stage:t.repetitionCount+1,overdue:t.nextReviewDate<td,type:'review'});
+   await db.topics.update(id,n);res=n});
+  closeSheet();toast(`${rating}. Next review ${fmt(res.nextReviewDate)}`);await render()}
+ catch(e){toast(e.message);closeSheet();await render()}finally{busy=false}}
+
+/* ===== Add topic ===== */
+function openAdd(){
+ sheet(`<h2>What did you study?</h2>
+ <label for="as">Subject</label><select id="as">${D.subs.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('')}<option value="__new">+ New subject…</option></select>
+ <div id="ns" style="display:none"><label for="nn">New subject name</label><input id="nn" maxlength="60"><label>Color</label><div class="chips" id="cc">${COLORS.map((c,i)=>`<button class="chip ${i?'':'on'}" data-col="${c}" style="background:${c};color:#fff;min-width:48px;min-height:48px" aria-label="Color ${i+1}"></button>`).join('')}</div></div>
+ <label for="at">Topic</label><input id="at" maxlength="120" placeholder="e.g. Krebs cycle">
+ <label for="ad">Study date</label><input id="ad" type="date" value="${today()}" max="${today()}">
+ <label for="an">Key takeaways</label><textarea id="an"></textarea>
+ <label for="ag">Tags (comma separated)</label><input id="ag">
+ <div class="prev" id="pv"></div><div id="er" class="mut" style="color:var(--bad)"></div>
+ <div class="row"><button class="btn" id="sv">Save topic</button><button class="btn sec" id="sc">Save + calendar</button></div>`);
+ if(!D.subs.length){$('#as').value='__new';$('#ns').style.display='block'}
+ pv();}
+function pv(){const d=$('#ad').value||today();$('#pv').innerHTML='<b>Revision preview</b>'+STD.map((n,i)=>`<div><span>Revision ${i+1}: +${n} day${n>1?'s':''}</span><span>${fmt(addDays(d,n))}</span></div>`).join('')}
+async function saveTopic(ics){const er=$('#er');let sid=$('#as').value;const title=$('#at').value.trim(),date=$('#ad').value;
+ if(!title){er.textContent='Enter a topic name.';return}
+ if(!date||date>today()){er.textContent='Choose a valid study date (not in the future).';return}
+ if(sid==='__new'){const n=$('#nn').value.trim();if(!n){er.textContent='Enter a subject name.';return}sid=uid();await db.subjects.add({id:sid,name:n,color:$('#cc .on').dataset.col})}
+ if(!await db.subjects.get(sid)){er.textContent='Subject not found.';return}
+ const t={id:uid(),subjectId:sid,title,notes:$('#an').value.trim(),tags:$('#ag').value.split(',').map(x=>x.trim()).filter(Boolean),studyDate:date,archived:false,createdAt:Date.now(),...initSRS(date)};
+ await db.topics.add(t);closeSheet();toast('Topic saved. First revision '+fmt(t.nextReviewDate));
+ if(ics){await load();downloadICS(t)}filter='all';await render()}
+
+/* ===== ICS export ===== */
+const icsEsc=s=>String(s).replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\r?\n/g,'\\n');
+function fold(l){const b=new TextEncoder();let out='',cur='',len=0;for(const ch of l){const n=b.encode(ch).length;if(len+n>73){out+=cur+'\r\n ';cur='';len=0}cur+=ch;len+=n}return out+cur}
+function downloadICS(t){const s=subOf(t),stamp=new Date().toISOString().replace(/[-:]/g,'').slice(0,15)+'Z';
+ const L=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Recall SRS//EN','CALSCALE:GREGORIAN'];
+ STD.forEach((n,i)=>{const d=addDays(t.studyDate,n);L.push('BEGIN:VEVENT','UID:'+t.id+'-r'+(i+1)+'@recall.local','DTSTAMP:'+stamp,'DTSTART;VALUE=DATE:'+d.replace(/-/g,''),'DTEND;VALUE=DATE:'+addDays(d,1).replace(/-/g,''),'SUMMARY:'+icsEsc('Revise: '+t.title),'DESCRIPTION:'+icsEsc(`Subject: ${s.name}\nRevision ${i+1} (day ${n})`),'BEGIN:VALARM','ACTION:DISPLAY','DESCRIPTION:'+icsEsc('Revise: '+t.title),'TRIGGER;RELATED=START:PT9H','END:VALARM','END:VEVENT')});
+ L.push('END:VCALENDAR');save(L.map(fold).join('\r\n')+'\r\n','text/calendar',`revise-${t.title.replace(/\W+/g,'-').slice(0,30)}.ics`);toast('Calendar file ready. Alarms depend on your calendar app.')}
+function save(text,type,name){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)}
+
+/* ===== Topic detail ===== */
+function openTopic(id){const t=D.tops.find(x=>x.id===id);if(!t)return;const s=subOf(t),h=D.logs.filter(l=>l.topicId===id).sort((a,b)=>b.ts-a.ts);
+ sheet(`<h2>${esc(t.title)}</h2><div class="mut"><span class="dot" style="--c:${s.color}"></span>${esc(s.name)}</div>
+ <div class="grid2"><div><b>${mastery(t)}%</b>Mastery</div><div><b>${t.easeFactor.toFixed(2)}</b>Ease</div><div><b>${t.repetitionCount}</b>Revisions</div><div><b>${t.currentInterval}d</b>Interval</div></div>
+ <div class="mut">Studied ${fmt(t.studyDate)} · Last ${fmt(t.lastReviewedAt)} · Next ${fmt(t.nextReviewDate)}</div>
+ <label for="en">Title</label><input id="et" value="${esc(t.title)}"><label for="en">Notes</label><textarea id="en">${esc(t.notes||'')}</textarea>
+ <label for="er2">Reschedule to</label><input id="er2" type="date" value="${t.nextReviewDate}" min="${today()}">
+ <div class="row"><button class="btn" data-sv="${id}">Save changes</button><button class="btn sec" data-ics="${id}">Calendar</button></div>
+ <div class="row"><button class="btn sec" data-reset="${id}">Reset progress</button><button class="btn sec" data-arch="${id}">${t.archived?'Unarchive':'Archive'}</button><button class="btn dng" data-del="${id}">Delete</button></div>
+ <ul class="hist">${h.map(l=>`<li>${fmt(l.actualDate)}: ${l.rating||l.type} (${l.previousInterval}d → ${l.newInterval}d${l.overdue?', overdue':''})</li>`).join('')||'<li>No revision history.</li>'}</ul>`)}
+async function audit(t,type,newDate,extra){await db.logs.add({id:uid(),topicId:t.id,ts:Date.now(),scheduledDate:t.nextReviewDate,actualDate:today(),rating:null,type,previousInterval:t.currentInterval,newInterval:extra?.iv??t.currentInterval,previousEase:t.easeFactor,newEase:t.easeFactor,stage:t.repetitionCount+1,overdue:false,note:newDate})}
+async function topicAct(k,id){const t=await db.topics.get(id);if(!t)return;
+ if(k==='sv'){const title=$('#et').value.trim();if(!title){toast('Title can’t be empty');return}const nd=$('#er2').value;
+  await db.transaction('rw',db.topics,db.logs,async()=>{if(nd&&nd!==t.nextReviewDate&&nd>=today()){await audit(t,'reschedule',nd);t.nextReviewDate=nd}
+   await db.topics.update(id,{title,notes:$('#en').value.trim(),nextReviewDate:t.nextReviewDate})});toast('Saved')}
+ if(k==='reset'){if(!confirm('Reset SRS progress for this topic? History is kept.'))return;await audit(t,'reset');await db.topics.update(id,initSRS(today()))}
+ if(k==='arch')await db.topics.update(id,{archived:!t.archived});
+ if(k==='del'){if(!confirm('Delete this topic and its revision history?'))return;await db.transaction('rw',db.topics,db.logs,async()=>{await db.logs.where('topicId').equals(id).delete();await db.topics.delete(id)});toast('Deleted')}
+ closeSheet();await render()}
+
+/* ===== Subjects ===== */
+function subForm(s){sheet(`<h2>${s?'Edit':'New'} subject</h2><label for="sn">Name</label><input id="sn" maxlength="60" value="${esc(s?.name||'')}"><label>Color</label><div class="chips" id="cc">${COLORS.map(c=>`<button class="chip ${(s?.color||COLORS[0])===c?'on':''}" data-col="${c}" style="background:${c};min-width:48px;min-height:48px" aria-label="Color"></button>`).join('')}</div>
+ <div class="row"><button class="btn" data-ss="${s?.id||''}">Save</button>${s?`<button class="btn dng" data-ds="${s.id}">Delete</button>`:''}</div>`)}
+async function saveSub(id){const name=$('#sn').value.trim();if(!name){toast('Enter a name');return}const color=$('#cc .on').dataset.col;
+ if(id)await db.subjects.update(id,{name,color});else await db.subjects.add({id:uid(),name,color});closeSheet();await render()}
+async function delSub(id){const n=D.tops.filter(t=>t.subjectId===id).length;
+ if(!confirm(n?`This deletes the subject and its ${n} topics with all revision history. Continue?`:'Delete this subject?'))return;
+ await db.transaction('rw',db.subjects,db.topics,db.logs,async()=>{const ids=(await db.topics.where('subjectId').equals(id).primaryKeys());await db.logs.where('topicId').anyOf(ids).delete();await db.topics.bulkDelete(ids);await db.subjects.delete(id)});closeSheet();filter='all';await render()}
+
+/* ===== Backup ===== */
+async function exportData(){await load();const settings=await db.settings.toArray();save(JSON.stringify({schema:1,app:'recall-srs',version:'1.0',exportedAt:new Date().toISOString(),subjects:D.subs,topics:D.tops,logs:D.logs,settings},null,1),'application/json',`recall-backup-${today()}.json`);toast('Backup downloaded')}
+const isDate=s=>typeof s==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(s)&&!isNaN(parse(s));
+function validate(b){const e=[];if(!b||b.schema!==1||b.app!=='recall-srs')return['Not a Recall backup (schema 1).'];
+ for(const k of['subjects','topics','logs'])if(!Array.isArray(b[k]))e.push(k+' missing');if(e.length)return e;
+ const ids=new Set(),sub=new Set(b.subjects.map(s=>s.id));
+ b.subjects.forEach(s=>{if(!s.id||!s.name)e.push('Bad subject')});
+ b.topics.forEach(t=>{if(!t.id||ids.has(t.id))e.push('Duplicate/missing topic id');ids.add(t.id);if(!t.title)e.push('Topic without title');if(!sub.has(t.subjectId))e.push('Broken subject reference: '+t.title);if(!isDate(t.nextReviewDate)||!isDate(t.studyDate)||typeof t.easeFactor!=='number'||t.easeFactor<1.3||!Number.isInteger(t.repetitionCount))e.push('Invalid SRS state: '+t.title)});
+ b.logs.forEach(l=>{if(!l.id||!ids.has(l.topicId)||!isDate(l.actualDate))e.push('Invalid log entry')});return[...new Set(e)]}
+async function importFile(f){try{const b=JSON.parse(await f.text()),er=validate(b);if(er.length){alert('Import rejected. Existing data untouched.\n\n'+er.slice(0,6).join('\n'));return}
+ const replace=confirm(`Backup: ${b.subjects.length} subjects, ${b.topics.length} topics, ${b.logs.length} revisions.\n\nOK = REPLACE all current data\nCancel = choose merge instead`);
+ if(!replace&&!confirm('Merge backup into existing data? (Existing items with the same ID are kept.)'))return;
+ let added=0;await db.transaction('rw',db.subjects,db.topics,db.logs,async()=>{if(replace){await db.subjects.clear();await db.topics.clear();await db.logs.clear()}
+  for(const[tb,rows]of[[db.subjects,b.subjects],[db.topics,b.topics],[db.logs,b.logs]])for(const r of rows){if(replace||!await tb.get(r.id)){await tb.put(r);added++}}});
+ toast(`Imported ${added} records`);await render()}catch(e){alert('Import failed, existing data untouched: '+e.message)}}
+
+/* ===== Notifications (honest, foreground-checked) ===== */
+async function checkDue(){if(!('Notification'in window)||Notification.permission!=='granted'||!await getSet('notifyOn',false))return;
+ const td=today();if(await getSet('lastNotified','')===td)return;const[h,m]=(await getSet('notifyTime','08:00')).split(':').map(Number),n=new Date();if(n.getHours()*60+n.getMinutes()<h*60+m)return;
+ const c=(await db.topics.toArray()).filter(t=>!t.archived&&t.nextReviewDate<=td).length;if(!c)return;
+ new Notification('Recall',{body:`${c} topic${c>1?'s':''} due for revision today`});await setSet('lastNotified',td)}
+async function enableNotif(){if(!('Notification'in window)){toast('Notifications unsupported here. Use calendar export.');return}
+ const p=await Notification.requestPermission();if(p==='granted'){await setSet('notifyOn',true);toast('Enabled. Checked when you open the app.');checkDue()}else toast('Blocked. Use calendar export from any topic instead.')}
+
+/* ===== Events ===== */
+document.addEventListener('click',async e=>{const b=e.target.closest('button');if(!b)return;const d=b.dataset;
+ if(d.tab){tab=d.tab;render()}else if(b.id==='fab')openAdd();
+ else if('f'in d){filter=d.f;render()}
+ else if(d.review)openReview(d.review);else if(d.rate)rate(d.id,d.rate);
+ else if('close'in d)closeSheet();
+ else if(d.topic)openTopic(d.topic);
+ else if(d.sv)topicAct('sv',d.sv);else if(d.reset)topicAct('reset',d.reset);else if(d.arch)topicAct('arch',d.arch);else if(d.del)topicAct('del',d.del);
+ else if(d.ics){const t=D.tops.find(x=>x.id===d.ics);if(t)downloadICS(t)}
+ else if(d.act==='newsub')subForm();else if(d.act==='editsub')subForm(D.sub[d.id]);
+ else if('ss'in d)saveSub(d.ss);else if(d.ds)delSub(d.ds);
+ else if(d.col){document.querySelectorAll('#cc .chip').forEach(c=>c.classList.remove('on'));b.classList.add('on')}
+ else if(b.id==='sv')saveTopic(false);else if(b.id==='sc')saveTopic(true);
+ else if(d.act==='export')exportData();else if(d.act==='import')$('#imp').click();else if(d.act==='notif')enableNotif()});
+document.addEventListener('change',async e=>{const i=e.target;
+ if(i.id==='as'){$('#ns').style.display=i.value==='__new'?'block':'none'}
+ else if(i.id==='ad')pv();
+ else if(i.id==='th'){await setSet('theme',i.value);render()}
+ else if(i.id==='nt')await setSet('notifyTime',i.value);
+ else if(i.id==='imp'&&i.files[0]){importFile(i.files[0]);i.value=''}
+});
+function redrawSyl(focusQ){$('#v').innerHTML=viewSyl();if(focusQ){const q=$('#q');q.focus();q.setSelectionRange(q.value.length,q.value.length)}}
+document.addEventListener('input',e=>{if(e.target.id==='q'){D.q=e.target.value;redrawSyl(true)}});
+document.addEventListener('change',e=>{if(['sf','st','so'].includes(e.target.id)){D[e.target.id]=e.target.value;redrawSyl()}});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){render();checkDue()}});
+window.addEventListener('focus',checkDue);
+render().then(checkDue);
+if('serviceWorker'in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(e=>console.warn('SW failed',e)));
+</script></body></html>
